@@ -1,4 +1,7 @@
 {
 	"name": "events-ingestion",
-	"image": "mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm"
+	"image": "mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm",
+	"runArgs": [
+		"--network=data-stack_data-network"
+	]
 }
