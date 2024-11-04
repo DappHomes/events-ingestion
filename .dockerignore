@@ -1,0 +1,7 @@
+.devcontainer/
+dist/
+docker/
+node_modules/
+.env.example
+.gitignore
+package-lock.json

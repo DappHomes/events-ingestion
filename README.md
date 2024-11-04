@@ -11,6 +11,8 @@ DappHomes events ingestion to [data-stack](https://github.com/DappHomes/data-sta
 Please, modify env variables to meet your needs:
 
 ```bash
+git clone https://github.com/DappHomes/events-ingestion
+cd events-ingestion/
 cp .env.example .env
 ```
 
@@ -21,3 +23,9 @@ cp .env.example .env
 | INIT_BLOCK | Initial block where factory contract was deployed | 7430577 |
 | APACHE_KAFKA_BROKER | Apache Kafka broker URL | broker:29092 |
 | KAFKA_TOPIC | Apache Kafka topic to publish contract events | contracts-events |
+
+Then you can deploy using docker:
+
+```bash
+docker compose up -d --build
+```

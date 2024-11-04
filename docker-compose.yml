@@ -1,0 +1,17 @@
+services:
+
+  events-ingestion:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: events-ingestion
+    container_name: events-ingestion
+    env_file: .env
+    restart: on-failure
+    networks:
+      - data-stack
+
+networks:
+  data-stack:
+    name: data-stack_data-network
+    external: true
