@@ -1,6 +1,11 @@
-import Web3 from 'web3';
-import * as dotenv from 'dotenv';
+import {
+  Web3,
+  Address,
+  ContractAbi
+} from 'web3';
 import DappHomesABI from './data/abi/DappHomes';
+import MarketplaceABI from './data/abi/Marketplace';
+import * as dotenv from 'dotenv';
 import { Kafka } from 'kafkajs';
 import './utils/Conversion';
 
@@ -15,6 +20,11 @@ if (!web3Provider) {
 const dapphomesFactoryAddress = process.env.DAPPHOMES_FACTORY_ADDRESS;
 if (!dapphomesFactoryAddress) {
   throw new Error('no DAPPHOMES_FACTORY_ADDRESS env variable');
+}
+
+const initBlock = process.env.INIT_BLOCK;
+if (!initBlock) {
+  throw new Error('no INIT_BLOCK env variable');
 }
 
 const web3 = new Web3(web3Provider);
@@ -39,11 +49,12 @@ const kafka = new Kafka({
 const producer = kafka.producer();
 
 // get past events from contract
-const getPastEvents = async () => {
+const getPastEvents = async (abi: ContractAbi, address: Address, initBlock: string) => {
+  const contract = new web3.eth.Contract(abi, address);
   const events = await contract.getPastEvents(
     'allEvents',
     {
-      fromBlock: process.env.INIT_BLOCK,
+      fromBlock: initBlock,
       toBlock: 'latest'
     }
   )
@@ -60,25 +71,53 @@ const eventsToMessages = async (events: any) => {
 
 // send messages to kafka
 const sendKafkaMessages = async(kafkaMessages: any) => {
-  await producer.connect();
   await producer.send({
     topic: kafkaTopic,
     messages: kafkaMessages
   })
 }
 
+const getMarketplaces = async () => {
+  return await contract.methods.getDappHomes().call();
+}
+
 const run = async () => {
   try {
     // get past events
-    const events = await getPastEvents();
+    console.log(`+ getting past events from factory contract`);
+    const events = await getPastEvents(
+      DappHomesABI, dapphomesFactoryAddress, initBlock
+    );
+    console.log(`${dapphomesFactoryAddress} has ${events.length} events`);
 
     // convert contract events to kafka messages
+    await producer.connect();
+    console.log(`+ transform factory events to apache kafka messages`);
     const messages = await eventsToMessages(events);
 
     // send messages to kafka
+    console.log(`+ sending messages to apache kafka`);
     await sendKafkaMessages(messages);
+
+    // get created marketplaces
+    console.log(`+ getting marketplaces`);
+    const marketplaces: any = await getMarketplaces();
+
+    // publish marketplaces past events
+    await Promise.all(
+      marketplaces.map(async (marketplace: string) => {
+        const marketplaceEvents = await getPastEvents(
+          MarketplaceABI, marketplace, initBlock
+        );
+        console.log(`${marketplace} has ${marketplaceEvents.length} events`);
+
+        const marketplaceMessages = await eventsToMessages(marketplaceEvents);
+        await sendKafkaMessages(marketplaceMessages);
+      })
+    );
     
     // close producer
+    console.log(`+ disconnecting apache kafka producer`);
     await producer.disconnect();
 
     return 'past events published';
